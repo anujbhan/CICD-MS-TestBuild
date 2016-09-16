@@ -1,0 +1,53 @@
+language: node_js
+node_js:
+  - "6"
+  - "6.1"
+  - "5.11"
+  - "0.6"
+  - "iojs"
+sudo: true
+install: true
+
+script: npm install
+
+before_deploy:
+  - cd ..
+  - zip -r nodeApp.zip node_modules script test package.json appspec.yml || true
+  - mkdir -p "dpl_cd_upload"
+  - mv nodeApp.zip dpl_cd_upload/nodeApp.zip || true
+
+deploy:
+  - provider: s3
+    access_key_id: $AWS_ACCESS_KEY # declared in Travis repo settings
+    secret_access_key: $AWS_SECRET_KEY
+    local_dir: dpl_cd_upload
+    bucket: ai-cicd-test-ms1
+    region: us-west-2
+    skip_cleanup: true
+    acl: public_read
+    detect_encoding: true
+    on:
+      repo: anujbhan/CICD-MS-TestBuild
+      branches:
+          only:
+          - service1
+  - provider: codedeploy
+    access_key_id: $AWS_ACCESS_KEY # declared in Travis repo settings
+    secret_access_key: $AWS_SECRET_KEY
+    bucket: ai-cicd-test-ms1
+    key: nodeApp.zip
+    bundle_type: zip
+    application: AI-CICD-MS1
+    deployment_group: DevEnv
+    region: us-west-2
+    on:
+      repo: anujbhan/CICD-MS-TestBuild
+      branches:
+          only:
+          - service1
+after_deploy:
+  - echo "Performing after deploy procedures..."
+notifications:
+  email:
+    recipients:
+      - bhandar.anuj@gmail.com
